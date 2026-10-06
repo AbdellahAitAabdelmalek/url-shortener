@@ -6,6 +6,8 @@ const EnvSchema = z.object({
   PORT: z.coerce.number().int().positive().default(4000),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   DATABASE_URL: z.url(),
+  // Absolute path to the built front-end. Unset in development, where Vite serves it.
+  STATIC_DIR: z.string().optional(),
 });
 
 export type Config = z.infer<typeof EnvSchema>;

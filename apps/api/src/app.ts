@@ -1,3 +1,4 @@
+import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyServerOptions } from 'fastify';
 import {
   serializerCompiler,
@@ -35,6 +36,12 @@ export async function buildApp(config: Config) {
   app.addHook('onClose', () => pool.end());
 
   await app.register(healthRoutes, { db });
+
+  if (config.STATIC_DIR) {
+    // Serves the built front-end from the same origin (no CORS). `wildcard: false` registers
+    // one static route per file, which Fastify's router matches before a `/:code` route.
+    await app.register(fastifyStatic, { root: config.STATIC_DIR, wildcard: false });
+  }
 
   return app;
 }
