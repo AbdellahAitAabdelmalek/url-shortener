@@ -5,6 +5,7 @@ const EnvSchema = z.object({
   HOST: z.string().default('localhost'),
   PORT: z.coerce.number().int().positive().default(4000),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
+  DATABASE_URL: z.url(),
 });
 
 export type Config = z.infer<typeof EnvSchema>;

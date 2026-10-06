@@ -5,6 +5,7 @@ import {
   type ZodTypeProvider,
 } from 'fastify-type-provider-zod';
 import type { Config } from './config';
+import { createDatabase } from './db/client';
 import { healthRoutes } from './health/health.routes';
 
 function loggerOptions(config: Config): FastifyServerOptions['logger'] {
@@ -27,7 +28,13 @@ export async function buildApp(config: Config) {
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
 
-  await app.register(healthRoutes);
+  const { pool, db } = createDatabase(config.DATABASE_URL);
+  // An idle client emits 'error' when the database drops the connection:
+  // without a listener, Node crashes the whole process.
+  pool.on('error', (err) => app.log.error({ err }, 'Idle database client error'));
+  app.addHook('onClose', () => pool.end());
+
+  await app.register(healthRoutes, { db });
 
   return app;
 }
