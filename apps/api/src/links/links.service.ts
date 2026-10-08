@@ -43,6 +43,10 @@ export function createLinksService({
       }
       throw new Error(`No unique code found after ${MAX_ATTEMPTS} attempts`);
     },
+
+    findByCode(code: string): Promise<LinkRow | null> {
+      return repository.findByCode(code);
+    },
   };
 }
 

@@ -1,6 +1,7 @@
 import type { ApiError, ApiErrorCode } from '@url-shortener/shared';
 import type { FastifyError, FastifyInstance } from 'fastify';
 import { hasZodFastifySchemaValidationErrors } from 'fastify-type-provider-zod';
+import { NOT_FOUND_PAGE } from './not-found-page';
 
 /** An expected business error: sent to the client with its code and message. */
 export class DomainError extends Error {
@@ -54,6 +55,10 @@ export function registerErrorHandlers(app: FastifyInstance) {
   });
 
   app.setNotFoundHandler((request, reply) => {
+    // Browsers following a short link get a page, API clients get JSON.
+    if (!request.url.startsWith('/api/')) {
+      return reply.code(STATUS_BY_CODE.NOT_FOUND).type('text/html').send(NOT_FOUND_PAGE);
+    }
     return reply
       .code(STATUS_BY_CODE.NOT_FOUND)
       .send(apiError('NOT_FOUND', `Route ${request.method} ${request.url} not found.`));

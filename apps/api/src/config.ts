@@ -8,6 +8,8 @@ const EnvSchema = z.object({
   DATABASE_URL: z.url(),
   // Origin where short links are served (GET /:code), e.g. https://sho.rt
   PUBLIC_BASE_URL: z.url(),
+  // Links a single IP address can create per minute.
+  RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(10),
   // Absolute path to the built front-end. Unset in development, where Vite serves it.
   STATIC_DIR: z.string().optional(),
 });

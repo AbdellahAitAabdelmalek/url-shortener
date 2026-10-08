@@ -1,3 +1,5 @@
+import fastifyHelmet from '@fastify/helmet';
+import fastifyRateLimit from '@fastify/rate-limit';
 import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyServerOptions } from 'fastify';
 import {
@@ -7,7 +9,7 @@ import {
 } from 'fastify-type-provider-zod';
 import type { Config } from './config';
 import { createDatabase } from './db/client';
-import { registerErrorHandlers } from './errors';
+import { DomainError, registerErrorHandlers } from './errors';
 import { healthRoutes } from './health/health.routes';
 import { createLinksRepository } from './links/links.repository';
 import { linksRoutes } from './links/links.routes';
@@ -36,6 +38,23 @@ export async function buildApp(config: Config) {
   app.setSerializerCompiler(serializerCompiler);
   registerErrorHandlers(app);
 
+  // Security headers: Content-Security-Policy, X-Content-Type-Options, Referrer-Policy...
+  await app.register(fastifyHelmet, {
+    contentSecurityPolicy: {
+      // TLS is terminated in front of the app in production. Locally the app runs over plain
+      // HTTP, where upgrading requests to HTTPS would break the page.
+      directives: { upgradeInsecureRequests: null },
+    },
+  });
+
+  // Opted in per route (global: false). The thrown DomainError becomes a 429 in the ApiError
+  // format. Counters live in memory: several instances would need a shared store (Redis).
+  await app.register(fastifyRateLimit, {
+    global: false,
+    errorResponseBuilder: (_request, context) =>
+      new DomainError('RATE_LIMITED', `Too many requests. Please try again in ${context.after}.`),
+  });
+
   const { pool, db } = createDatabase(config.DATABASE_URL);
   // An idle client emits 'error' when the database drops the connection:
   // without a listener, Node crashes the whole process.
@@ -51,6 +70,7 @@ export async function buildApp(config: Config) {
   await app.register(linksRoutes, {
     service: linksService,
     publicBaseUrl: config.PUBLIC_BASE_URL,
+    rateLimitPerMinute: config.RATE_LIMIT_PER_MINUTE,
   });
 
   if (config.STATIC_DIR) {

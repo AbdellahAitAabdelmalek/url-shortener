@@ -11,6 +11,8 @@ export function testConfig(overrides: Record<string, string> = {}): Config {
     LOG_LEVEL: 'silent',
     DATABASE_URL: TEST_DATABASE_URL,
     PUBLIC_BASE_URL: TEST_PUBLIC_BASE_URL,
+    // Every injected request comes from the same IP: tests that check the limit lower it.
+    RATE_LIMIT_PER_MINUTE: '1000',
     ...overrides,
   });
 }
