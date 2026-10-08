@@ -22,10 +22,13 @@ FROM base AS runtime
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=4000 \
-    STATIC_DIR=/app/public
-COPY --from=prod-deps /app/node_modules ./node_modules
-COPY --from=build /app/apps/api/dist ./dist
-COPY --from=build /app/apps/web/dist ./public
+    STATIC_DIR=/app/apps/web/dist
+# Keeps the workspace layout so that Node resolves each dependency where npm installed it
+# (nanoid 6 lives in apps/api/node_modules: the root one is the 3.x used by the web tooling).
+COPY --from=prod-deps /app ./
+COPY --from=build /app/apps/api/dist ./apps/api/dist
+COPY --from=build /app/apps/api/drizzle ./apps/api/drizzle
+COPY --from=build /app/apps/web/dist ./apps/web/dist
 USER node
 EXPOSE 4000
-CMD ["node", "dist/server.mjs"]
+CMD ["node", "apps/api/dist/server.mjs"]
