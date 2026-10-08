@@ -10,6 +10,8 @@ import {
 } from './links';
 
 const tooLongUrl = `https://stoik.com/${'a'.repeat(MAX_URL_LENGTH)}`;
+// 718 characters as typed, but each "é" becomes "%C3%A9" once normalized: 4218 characters.
+const tooLongOnceEncodedUrl = `https://stoik.com/${'é'.repeat(700)}`;
 
 describe('LongUrlSchema', () => {
   it.each([
@@ -18,26 +20,40 @@ describe('LongUrlSchema', () => {
       'https://www.stoik.com/barometre-ifop-2025-eti-risque-cyber',
       'https://www.stoik.com/barometre-ifop-2025-eti-risque-cyber',
     ],
-    ['an http URL', 'http://stoik.com', 'http://stoik.com'],
+    ['an http URL', 'http://stoik.com/', 'http://stoik.com/'],
     [
       'a query string and a fragment',
       'https://stoik.com/search?q=cyber&page=2#results',
       'https://stoik.com/search?q=cyber&page=2#results',
     ],
     ['a port', 'https://stoik.com:8443/path', 'https://stoik.com:8443/path'],
-    ['a bare domain, prefixed with https://', 'stoik.com', 'https://stoik.com'],
+    ['a bare domain, prefixed with https://', 'stoik.com', 'https://stoik.com/'],
     [
       'a domain and a path, prefixed with https://',
       'www.stoik.com/blog',
       'https://www.stoik.com/blog',
     ],
-    ['surrounding whitespace, trimmed', '  https://stoik.com  ', 'https://stoik.com'],
+    ['surrounding whitespace, trimmed', '  https://stoik.com/  ', 'https://stoik.com/'],
   ])('accepts %s', (_, input, expected) => {
     expect(LongUrlSchema.parse(input)).toBe(expected);
   });
 
+  it.each([
+    ['adds the root path', 'https://stoik.com', 'https://stoik.com/'],
+    [
+      'lowercases the scheme and the host',
+      'HTTPS://WWW.Stoik.COM/Path',
+      'https://www.stoik.com/Path',
+    ],
+    ['removes the default port', 'https://stoik.com:443/', 'https://stoik.com/'],
+    ['percent-encodes the path', 'https://stoik.com/café', 'https://stoik.com/caf%C3%A9'],
+    ['converts the host to punycode', 'https://bücher.de/', 'https://xn--bcher-kva.de/'],
+  ])('normalizes the URL: %s', (_, input, expected) => {
+    expect(LongUrlSchema.parse(input)).toBe(expected);
+  });
+
   it('is idempotent, since both the web app and the API parse the same input', () => {
-    const once = LongUrlSchema.parse('stoik.com/blog');
+    const once = LongUrlSchema.parse('HTTPS://Stoik.com/café?q=1');
 
     expect(LongUrlSchema.parse(once)).toBe(once);
   });
@@ -58,6 +74,7 @@ describe('LongUrlSchema', () => {
     ['credentials hiding the real host', 'https://google.com@evil.com'],
     ['a username and a password', 'https://user:pass@stoik.com'],
     ['a URL that is too long', tooLongUrl],
+    ['a URL that is too long once normalized', tooLongOnceEncodedUrl],
   ])('rejects %s', (_, input) => {
     expect(LongUrlSchema.safeParse(input).success).toBe(false);
   });
@@ -97,7 +114,7 @@ describe('ShortCodeSchema', () => {
 
 describe('CreateLinkBodySchema', () => {
   it('normalizes the URL', () => {
-    expect(CreateLinkBodySchema.parse({ url: 'stoik.com' })).toEqual({ url: 'https://stoik.com' });
+    expect(CreateLinkBodySchema.parse({ url: 'stoik.com' })).toEqual({ url: 'https://stoik.com/' });
   });
 
   it('rejects a body without URL', () => {

@@ -16,17 +16,24 @@ export const LongUrlSchema = z
   .string()
   .trim()
   .min(1, 'Please enter a URL.')
-  .max(MAX_URL_LENGTH, `This URL is too long (${MAX_URL_LENGTH} characters max).`)
   // Users often paste "stoik.com": assume https when no scheme is given.
   .transform((input) => (startsWithScheme.test(input) ? input : `https://${input}`))
   .pipe(
-    z.url({
-      // Web links only: rejects javascript:, data:, file:, ftp:...
-      protocol: /^https?$/,
-      // A public domain name: rejects localhost, IP addresses and single words.
-      hostname: z.regexes.domain,
-      error: 'Please enter a valid URL, like https://example.com.',
-    }),
+    z
+      .url({
+        // Web links only: rejects javascript:, data:, file:, ftp:...
+        protocol: /^https?$/,
+        // A public domain name: rejects localhost, IP addresses and single words.
+        hostname: z.regexes.domain,
+        // Returns the WHATWG serialization (URL.href): lowercase scheme and host, no default
+        // port, ASCII only (punycode host, percent-encoded path). Two spellings of the same URL
+        // become one, which is what makes original URLs unique in the database.
+        normalize: true,
+        error: 'Please enter a valid URL, like https://example.com.',
+      })
+      // Checked on the normalized URL: once ASCII only, 2048 characters are 2048 bytes, under
+      // the 2704 bytes PostgreSQL accepts in a B-tree index entry (the unique index on the URL).
+      .max(MAX_URL_LENGTH, `This URL is too long (${MAX_URL_LENGTH} characters max).`),
   )
   // "https://google.com@evil.com" opens evil.com: a classic phishing trick.
   // Zod also runs this check when z.url() has failed, hence URL.parse, which returns null
