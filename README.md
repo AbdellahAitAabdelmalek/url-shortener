@@ -2,57 +2,42 @@
 
 Turn a long link into a short one that redirects to the original URL.
 
-## Getting started
+## How to run the project locally
 
-### Run the app (Docker only)
+With Docker only:
 
 ```sh
 docker compose up --build
 ```
 
-Open http://localhost:4000. The API serves the built front-end, so everything runs on a single origin.
+Then open http://localhost:4000. If a port is taken: `APP_PORT=8080 DB_PORT=5434 docker compose up --build`.
 
-Ports can be changed if they are already in use: `APP_PORT=8080 DB_PORT=5434 docker compose up --build`.
-
-### Develop locally
-
-Requirements: Node.js 26 (`nvm use`) and Docker (for PostgreSQL).
+For development (Node.js 26 and Docker):
 
 ```sh
+nvm use
 npm install
 cp .env.example .env
-docker compose up -d db   # PostgreSQL on port 5433
-npm run dev               # api on http://localhost:4000, web on http://localhost:5173
+docker compose up -d db   # PostgreSQL
+npm run dev               # web on http://localhost:5173, API on http://localhost:4000
 ```
 
-In development, Vite proxies `/api` to the API.
+## Main technical choices
 
-### Run the tests
+- **Monorepo**: `apps/api` (Fastify), `apps/web` (React, Vite, TanStack Query, shadcn/ui) and `packages/shared`.
+- **One contract**: the Zod schemas of `packages/shared` validate the form, the API requests and, in the web app, the API responses. TypeScript types are inferred from them.
+- **PostgreSQL with Drizzle**: readable SQL, versioned migrations applied at startup.
+- **Short codes**: 7 random characters (nanoid) from a 57-character alphabet without look-alikes (0/O, 1/l/I): 57⁷ ≈ 1.95 × 10¹² codes. Being random, they cannot be guessed by incrementing, unlike sequential ids. A unique constraint catches collisions and the code is regenerated.
+- **One link per URL**: URLs are normalized, then unique in the database. `stoik.com`, `HTTPS://STOIK.COM` and `https://stoik.com:443/` all become `https://stoik.com/`, so they share one link. Shortening a URL again returns its existing link with a 200, including under concurrent requests.
+- **302, not 301**: browsers cache a 301 for good, so a link could no longer be disabled, nor its clicks counted.
+- **Security**: only `http://` and `https://` links to a domain name are accepted (`javascript:`, `data:`, `file:`, localhost, IP addresses and credentials in the URL are rejected), link creation is rate limited, and security headers are set (Helmet).
+- **Single origin**: Fastify serves the API, the redirections and the built front-end. One container, no CORS.
 
-The API tests run against a real PostgreSQL database (`url_shortener_test`, created on the first start of the `db` container):
+## Assumptions and shortcuts
 
-```sh
-docker compose up -d db
-npm test
-```
-
-## Project structure
-
-```
-apps/
-  api/        Fastify + TypeScript: REST API and redirections
-  web/        React + Vite + TypeScript: the shortening form
-packages/
-  shared/     Zod schemas shared by api and web (the API contract)
-```
-
-## Scripts
-
-| Command             | Description                        |
-| ------------------- | ---------------------------------- |
-| `npm run dev`       | Start api and web in watch mode    |
-| `npm run lint`      | Lint and format check (Biome)      |
-| `npm run format`    | Apply lint fixes and formatting    |
-| `npm run typecheck` | Type-check every workspace         |
-| `npm test`          | Run every workspace's tests        |
-| `npm run build`     | Build every workspace              |
+- **Internal tool**: no authentication, and anyone with a short link can follow it. This is also why one URL gives one link.
+- **Duplicates**: only spellings of the very same URL share a link (see the normalization above). URLs that may show the same page but differ get different links, since only the target site knows whether they are equivalent. For example, each of these pairs gives two links:
+  - `https://stoik.com/blog` and `https://stoik.com/blog/` (trailing slash)
+  - `https://stoik.com/?q=cyber&page=2` and `https://stoik.com/?page=2&q=cyber` (parameter order)
+  - `https://stoik.com/faq#pricing` and `https://stoik.com/faq#contact` (fragment)
+- **Links are permanent**: no expiration, edition or deletion.
