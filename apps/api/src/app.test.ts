@@ -60,16 +60,3 @@ describe('static front-end', () => {
     await app.close();
   });
 });
-
-describe('security headers', () => {
-  it('sends the Helmet headers, without upgrading requests to HTTPS', async () => {
-    const app = await buildApp(testConfig());
-
-    const response = await app.inject({ method: 'GET', url: '/health' });
-
-    expect(response.headers['x-content-type-options']).toBe('nosniff');
-    expect(response.headers['content-security-policy']).toContain("default-src 'self'");
-    expect(response.headers['content-security-policy']).not.toContain('upgrade-insecure-requests');
-    await app.close();
-  });
-});

@@ -10,7 +10,6 @@ import {
 import type { Config } from './config';
 import { createDatabase } from './db/client';
 import { DomainError, registerErrorHandlers } from './errors';
-import { healthRoutes } from './health/health.routes';
 import { createLinksRepository } from './links/links.repository';
 import { linksRoutes } from './links/links.routes';
 import { createLinksService } from './links/links.service';
@@ -66,7 +65,6 @@ export async function buildApp(config: Config) {
     publicBaseUrl: config.PUBLIC_BASE_URL,
   });
 
-  await app.register(healthRoutes, { db });
   await app.register(linksRoutes, {
     service: linksService,
     publicBaseUrl: config.PUBLIC_BASE_URL,
