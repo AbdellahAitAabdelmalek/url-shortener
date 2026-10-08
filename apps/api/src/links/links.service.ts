@@ -3,7 +3,7 @@ import { DomainError } from '../errors';
 import { generateCode as defaultGenerateCode } from './code';
 import type { LinksRepository } from './links.repository';
 
-// With a million links stored, a new code collides with probability 10^6 / 1.9 × 10^12, about
+// With a million links stored, a new code collides with probability 10^6 / 1.95 × 10^12, about
 // 1 in 2 million: 5 collisions in a row mean something else is wrong.
 const MAX_ATTEMPTS = 5;
 

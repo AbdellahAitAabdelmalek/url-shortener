@@ -4,6 +4,6 @@ import { customAlphabet } from 'nanoid';
 /**
  * Random codes from a cryptographically secure source. Sequential ids would let anyone enumerate
  * every link; nanoid also avoids the modulo bias of a naive `randomBytes() % alphabet.length`.
- * 57^7 ≈ 1.9 × 10^12 possible codes.
+ * 57^7 = 1,954,897,493,193 possible codes.
  */
 export const generateCode = customAlphabet(CODE_ALPHABET, CODE_LENGTH);
